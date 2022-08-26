@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{/layout/basic :: setContent(~{this::content} )}">
+  <th:block th:fragment="content">
+    <h1 class="mt-4">Board Read Page</h1>
+    <div class="form-control" style="margin-bottom: 10px;">
+      <label for="">Bno</label>
+      <input type="text" name="bno" class="form-control" readonly
+        th:value="${dto.bno}">
+    </div>
+    <div class="form-control" style="margin-bottom: 10px;">
+      <label for="">Title</label>
+      <input type="text" name="title" class="form-control" readonly
+      th:value="${dto.title}">
+    </div>
+    <div class="form-control" style="margin-bottom: 10px;">
+      <label for="">Content</label>
+      <textarea name="content" class="form-control" readonly
+        rows="5">[[${dto.content}]]</textarea>
+    </div>
+    <div class="form-control" style="margin-bottom: 10px;">
+      <label for="">Writer</label>
+      <input type="text" name="writer" readonly class="form-control"
+      th:value="${dto.writerName}">
+    </div>
+    <div class="form-control" style="margin-bottom: 10px;">
+      <label for="">RegDate</label>
+      <input type="text" readonly class="form-control" 
+      th:value="${#temporals.format(dto.regDate,'yyyy/MM/dd HH:mm:ss')}">
+    </div>
+    <div class="form-control" style="margin-bottom: 10px;">
+      <label for="">ModDate</label>
+      <input type="text" readonly class="form-control" 
+      th:value="${#temporals.format(dto.modDate,'yyyy/MM/dd HH:mm:ss')}">
+    </div>
+
+    <div class="form-control" style="margin-bottom: 10px;">
+      <button class="btn btn-primary" th:onclick="|location.href=
+          '@{/board/modify(bno=${dto.bno},page=${requestDTO.page}
+          ,type=${requestDTO.type},keyword=${requestDTO.keyword})}'|"
+          >Modify</button>
+      <button class="btn btn-info" th:onclick="|location.href=
+          '@{/board/list(page=${requestDTO.page},type=${requestDTO.type},
+          keyword=${requestDTO.keyword})}'|">List</button>
+    </div>
+    <div class="form-control" style="margin-bottom: 10px;">
+      <div class="mt-4">
+        <h5><span class="btn btn-secondary addReply">Add Reply</span> 
+        <span class="btn btn-warning replyCount">
+          Reply Count [[${dto.replyCount}]]
+        </span></h5>
+      </div>
+      <div class="list-group replyList">
+
+      </div>
+    </div>
+    <div id="myModal" class="modal" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Modal title</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                   aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Modal body text goes here.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger remove" >Remove</button>
+            <button type="button" class="btn btn-warning modify">Modify</button>
+            <button type="button" class="btn btn-primary save">Save</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script th:inline="javascript">
+      window.onload = function(){
+        var msg = /*[[${msg}]]*/'msg';
+        if(msg){
+          console.log(msg)
+          const bno = msg.split(" ")[0]
+          const noti = msg.split(" ")[1]
+          var myModal = new bootstrap.Modal(document.getElementById('myModal')
+                          , {backdrop: true})
+          document.querySelector(".modal-title").textContent=noti+' 완료'
+          document.querySelector(".modal-body").innerHTML = 
+              `<p>${bno}번 글이 ${noti}되었습니다.</p>`
+          showBtn('Close')
+          myModal.show();
+        }
+        const bno = /*[[${dto.bno}]]*/'bno'
+        var listGroup = document.querySelector(".replyList");
+        function formatTime(str){
+          var date = new Date(str);
+          return date.getFullYear()+'/'+
+                  (date.getMonth()+1)+'/'+
+                  date.getDate()+ ' ' +
+                  date.getHours() + ':' +
+                  date.getMinutes();
+        }
+        function loadJSONData(){
+          const url = /*[[@{/replies/board/}]]*/'url'
+          axios({
+                method:"GET",
+                url: 'http://localhost:8080'+url+bno
+          }).then( function(res){
+            let str = '';
+            for (const reply of res.data) {
+              str += 
+              `<div class="card-body form-control" data-rno="${reply.rno}"
+                  data-title="${reply.text}" data-replyer="${reply.replyer}">
+                <b>${reply.rno}</b>
+                <h5 class="card-title">${reply.text}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">${reply.replyer}</h6>
+                <p class="card-text">${formatTime(reply.regDate)}</p>
+              </div>`
+            }
+            listGroup.innerHTML = str
+            const cardbodys = document.querySelectorAll('.card-body')
+            for(let i=0;i<cardbodys.length;i++){
+              cardbodys[i].onclick = function(){
+                const rno = cardbodys[i].dataset.rno
+                const title = cardbodys[i].dataset.title
+                const replyer = cardbodys[i].dataset.replyer
+                document.querySelector(".modal-title").textContent='Modify Reply'
+                document.querySelector(".modal-body").innerHTML = 
+                  ` <div class="modal-body" style="margin-bottom: 5px;">
+                      <input class="form-control" type="text" name="replyText" value="${title}">
+                    </div>
+                    <div class="modal-body" style="margin-bottom: 5px;">
+                      <input class="form-control" type="text" name="replyer" value="${replyer}">
+                      <input type="hidden" name="rno" value="${rno}">
+                    </div>
+                  `
+                showBtn('Remove','Modify','Close');
+                myModal.show();
+              }
+            }
+          }).catch(function(err){console.log(err)});
+        }
+        loadJSONData()
+        var myModal = new bootstrap.Modal(document.getElementById('myModal')
+                        , {backdrop: false})
+        document.querySelector(".addReply").onclick = function(){
+          document.querySelector(".modal-title").textContent='Add Reply'
+          document.querySelector(".modal-body").innerHTML = 
+              ` <div class="modal-body" style="margin-bottom: 5px;">
+                  <input class="form-control" type="text" name="replyText" placeholder="Reply Text...">
+                </div>
+                <div class="modal-body" style="margin-bottom: 5px;">
+                  <input class="form-control" type="text" name="replyer" placeholder="Replyer">
+                  <input type="hidden" name="rno">
+                </div>
+              `
+          showBtn('Save','Close');
+          myModal.show();
+        }
+        function showBtn(...arr){
+          const btns = document.querySelectorAll(".modal-footer .btn");
+          for(let i=0;i<btns.length;i++){
+            for(let j=0;j<arr.length;j++){
+              if(arr[j] !== btns[i].textContent) {
+                btns[i].style.display = 'none';
+              } else {
+                btns[i].style.display = 'inline';
+                break;
+              }
+            }
+          }
+        }
+        document.querySelector(".modal-footer .save").onclick = function(){
+          const reply = {
+            bno: bno, text: document.querySelector("input[name='replyText']").value,
+            replyer: document.querySelector("input[name='replyer']").value
+          }
+          console.log(reply)
+          const url = /*[[@{/replies}]]*/'url'
+          axios({
+                method:"POST",
+                url: 'http://localhost:8080'+url,
+                data: JSON.stringify(reply),
+                headers: {'Content-Type': 'application/json'}
+          })
+          .then( function(res){
+            var newRno = parseInt(res.data)
+            alert(newRno+'번 글이 등록되었습니다.')
+            myModal.hide();
+            loadJSONData();
+          }).catch(function(err){console.log(err)});
+        }
+        document.querySelector(".modal-footer .modify").onclick = function(){
+          var rno = document.querySelector("input[name='rno']").value;
+          const reply = {
+            rno: rno, bno: bno, 
+            text: document.querySelector("input[name='replyText']").value,
+            replyer: document.querySelector("input[name='replyer']").value
+          }
+          console.log(reply)
+          const url = /*[[@{/replies/}]]*/'url'
+          axios({
+                method:"PUT",
+                url: 'http://localhost:8080'+url+rno,
+                data: JSON.stringify(reply),
+                headers: {'Content-Type': 'application/json'}
+          })
+          .then( function(res){
+            if(res.data === 'success'){
+              alert('댓글이 수정되었습니다.')
+              myModal.hide();
+              loadJSONData();
+            }
+          }).catch(function(err){console.log(err)});
+        }
+        document.querySelector(".modal-footer .remove").onclick = function(){
+          var rno = document.querySelector("input[name='rno']").value;
+          const url = /*[[@{/replies/}]]*/'url'
+          axios({
+                method:"DELETE",
+                url: 'http://localhost:8080'+url+rno
+          })
+          .then( function(res){
+            if(res.data === 'success'){
+              alert('댓글이 삭제되었습니다.')
+              myModal.hide();
+              loadJSONData();
+            }
+          }).catch(function(err){console.log(err)});
+        }
+      }
+    </script>
+  </th:block>
+</th:block>
